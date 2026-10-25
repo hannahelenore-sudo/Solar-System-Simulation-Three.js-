@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solar System</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: black; font-family: sans-serif; }
+    button { padding: 8px 12px; cursor: pointer; }
+    #info {
+      position: absolute; bottom: 20px; left: 20px; width: 280px;
+      background: rgba(0, 0, 0, 0.75); color: white;
+      border: 1px solid #555; border-radius: 8px; padding: 14px;
+      display: none;
+    }
+    #info h2 { margin: 0 0 8px 0; }
+    #info p { margin: 4px 0; font-size: 14px; line-height: 1.4; }
+    #back { margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+
+// info box
+
+
+<div id="info">
+  <h2 id="infoName"></h2>
+  <p id="infoDistance"></p>
+  <p id="infoFact"></p>
+  <button id="back">Back to Solar System</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+
+
+//scene, camera, renderer, controls
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+const homePosition = new THREE.Vector3(0, 60, 120);   // where the camera starts
+camera.position.copy(homePosition);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+
+//stars
+
+
+function makeStars() {
+  const positions = [];
+  for (let i = 0; i < 2000; i++) {
+    positions.push(
+      (Math.random() - 0.5) * 1500,
+      (Math.random() - 0.5) * 1500,
+      (Math.random() - 0.5) * 1500
+    );
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  scene.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2 })));
+}
+makeStars();
+
+
+//sun and lights
+
+
+const sun = new THREE.Mesh(
+  new THREE.SphereGeometry(10, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+);
+scene.add(sun);
+
+sun.add(new THREE.PointLight(0xffffff, 2, 0));          
+scene.add(new THREE.AmbientLight(0xffffff, 0.2));       
+
+
+//remember things
+
+
+const planets = [];      
+const orbitLines = [];   
+const clickables = [];   
+
+
+sun.userData = {
+  name: "The Sun",
+  distance: "Center of the Solar System",
+  fact: "The Sun is a star. It is so big that about 1.3 million Earths could fit inside it!"
+};
+clickables.push(sun);
+
+
+//planet base
+
+
+function makePlanet(name, size, color, distance, orbitSpeed, spinSpeed, distanceText, fact) {
+  const pivot = new THREE.Object3D();    
+  scene.add(pivot);
+
+  const planet = new THREE.Mesh(
+    new THREE.SphereGeometry(size, 32, 32),
+    new THREE.MeshStandardMaterial({ color: color })
+  );
+  planet.position.x = distance;
+  pivot.add(planet);
+
+  // save info on the planet so the info box can show it
+  planet.userData = { name: name, distance: distanceText, fact: fact };
+  clickables.push(planet);
+
+  // orbit ring on the floor
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(distance - 0.1, distance + 0.1, 128),
+    new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = Math.PI / 2;
+  scene.add(ring);
+  orbitLines.push(ring);
+
+  planets.push({ pivot, planet, orbitSpeed, spinSpeed });
+  return planet;
+}
+
+
+//planets
+
+
+makePlanet("Mercury", 1.0, 0xaaaaaa, 18, 0.04, 0.02,
+  "58 million km from the Sun",
+  "Mercury is the smallest planet and one year there lasts only 88 Earth days.");
+
+makePlanet("Venus", 1.8, 0xe8c07a, 26, 0.03, 0.01,
+  "108 million km from the Sun",
+  "Venus is the hottest planet, even hotter than Mercury!");
+
+const earth = makePlanet("Earth", 2.0, 0x2a6fdb, 36, 0.02, 0.05,
+  "150 million km from the Sun",
+  "Earth is our home and the only planet we know that has life. It has 1 Moon.");
+
+makePlanet("Mars", 1.5, 0xd1492e, 46, 0.015, 0.04,
+  "228 million km from the Sun",
+  "Mars is called the Red Planet because its soil has rust in it.");
+
+makePlanet("Jupiter", 5.0, 0xd8a56a, 62, 0.008, 0.08,
+  "778 million km from the Sun",
+  "Jupiter is the biggest planet. Its Great Red Spot is a storm bigger than Earth.");
+
+const saturn = makePlanet("Saturn", 4.2, 0xe3d29a, 80, 0.006, 0.07,
+  "1.4 billion km from the Sun",
+  "Saturn has beautiful rings made of ice and rock. It is so light it could float on water!");
+
+makePlanet("Uranus", 3.0, 0x7fe0e8, 96, 0.004, 0.05,
+  "2.9 billion km from the Sun",
+  "Uranus spins on its side, like a rolling ball.");
+
+makePlanet("Neptune", 3.0, 0x3b4fd6, 110, 0.003, 0.05,
+  "4.5 billion km from the Sun",
+  "Neptune is very windy. It has the fastest winds in the Solar System.");
+
+
+//saturns ring
+
+
+const saturnRing = new THREE.Mesh(
+  new THREE.RingGeometry(5.5, 8, 64),
+  new THREE.MeshBasicMaterial({ color: 0xc9b37e, side: THREE.DoubleSide })
+);
+saturnRing.rotation.x = Math.PI / 2;
+saturn.add(saturnRing);
+
+
+//the moon
+
+
+const moonPivot = new THREE.Object3D();
+earth.add(moonPivot);
+
+const moon = new THREE.Mesh(
+  new THREE.SphereGeometry(0.5, 16, 16),
+  new THREE.MeshStandardMaterial({ color: 0xdddddd })
+);
+moon.position.x = 4;
+moonPivot.add(moon);
+
+
+//focus on a planet / go back
+
+
+let focused = null;      
+let flying = false;      
+let returning = false;   
+
+const infoBox = document.getElementById("info");
+
+function focusOn(body) {
+  focused = body;
+  flying = true;
+  returning = false;
+
+  //show the info box
+  document.getElementById("infoName").textContent = body.userData.name;
+  document.getElementById("infoDistance").textContent = body.userData.distance;
+  document.getElementById("infoFact").textContent = body.userData.fact;
+  infoBox.style.display = "block";
+}
+
+function goBack() {
+  if (focused === null) return;
+  focused = null;
+  flying = false;
+  returning = true;
+  infoBox.style.display = "none";
+}
+
+document.getElementById("back").onclick = goBack;
+window.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") goBack();
+});
+
+
+//clicking
+
+
+const raycaster = new THREE.Raycaster();   
+const mouse = new THREE.Vector2();
+let downX = 0;
+let downY = 0;
+
+renderer.domElement.addEventListener("pointerdown", function (e) {
+  downX = e.clientX;
+  downY = e.clientY;
+});
+
+renderer.domElement.addEventListener("pointerup", function (e) {
+  
+  const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+  if (moved > 5) return;
+
+  
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(clickables);
+
+  if (hits.length > 0) {
+    focusOn(hits[0].object);   // clicked a planet
+  } else {
+    goBack();                  // clicked empty space
+  }
+});
+
+
+//animation loop
+
+
+const planetPosition = new THREE.Vector3();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  for (const p of planets) {
+    p.pivot.rotation.y += p.orbitSpeed;
+    p.planet.rotation.y += p.spinSpeed;
+  }
+  moonPivot.rotation.y += 0.06;
+  sun.rotation.y += 0.005;
+
+  if (focused !== null) {
+    focused.getWorldPosition(planetPosition);
+    camera.position.add(planetPosition.clone().sub(controls.target));
+    controls.target.copy(planetPosition);
+
+    if (flying) {
+      const size = focused.geometry.parameters.radius;
+      const direction = camera.position.clone().sub(planetPosition).normalize();
+      const goal = planetPosition.clone().add(direction.multiplyScalar(size * 4 + 4));
+      camera.position.lerp(goal, 0.08);
+      if (camera.position.distanceTo(goal) < 0.5) flying = false;
+    }
+  }
+
+  if (returning) {
+    controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.08);
+    camera.position.lerp(homePosition, 0.08);
+    if (camera.position.distanceTo(homePosition) < 0.5) returning = false;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+
+//resize
+
+
+window.addEventListener("resize", function () {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>
